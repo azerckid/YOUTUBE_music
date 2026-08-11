@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YouTube Music Auto - Main Flow Preview</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b0d12; --panel:#151922; --line:#2a3040; --text:#f5f6f8; --muted:#9ca6b8; --accent:#d7b46a; --good:#55c99a; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:radial-gradient(circle at top,#1b2130 0,#0b0d12 48%); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    .page { width:min(1040px,calc(100% - 32px)); margin:0 auto; padding:40px 0 64px; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:28px; }
+    h1 { margin:0; font-size:24px; letter-spacing:-.02em; }
+    .status { color:var(--good); font-size:14px; }
+    .flow { display:grid; gap:18px; }
+    .card { background:rgba(21,25,34,.94); border:1px solid var(--line); border-radius:18px; padding:24px; box-shadow:0 18px 50px rgba(0,0,0,.28); }
+    .card h2 { margin:0 0 8px; font-size:18px; }
+    .muted { color:var(--muted); font-size:14px; line-height:1.6; }
+    textarea { width:100%; min-height:132px; margin:18px 0 14px; resize:vertical; border:1px solid #3a4255; border-radius:12px; background:#0f1219; color:var(--text); padding:16px; font:inherit; line-height:1.6; }
+    button { border:0; border-radius:11px; padding:13px 18px; background:var(--accent); color:#17120a; font-weight:700; cursor:pointer; }
+    button:disabled { opacity:.55; cursor:wait; }
+    .progress { height:8px; margin-top:18px; overflow:hidden; border-radius:999px; background:#0f1219; }
+    .bar { width:0; height:100%; background:linear-gradient(90deg,#a8894c,var(--accent)); transition:width .35s ease; }
+    .steps { display:grid; gap:10px; margin-top:16px; }
+    .step { display:flex; gap:12px; align-items:center; padding:11px 12px; background:#10141c; border:1px solid #252b39; border-radius:10px; color:var(--muted); font-size:13px; }
+    .step.active { border-color:#806b3e; color:var(--text); }
+    .step.done { border-color:#2e584b; color:#cdeedd; }
+    .dot { width:9px; height:9px; border-radius:50%; background:#596174; flex:none; }
+    .active .dot { background:var(--accent); box-shadow:0 0 0 5px rgba(215,180,106,.12); }
+    .done .dot { background:var(--good); }
+    .result { display:none; justify-content:space-between; align-items:center; gap:18px; border-color:#2e584b; background:#10231d; }
+    .result.visible { display:flex; }
+    .files { color:#cdeedd; font-size:13px; line-height:1.7; }
+    @media (max-width:760px) { .topbar,.result { align-items:flex-start; gap:12px; flex-direction:column; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <div><h1>YouTube Music Auto</h1><div class="muted">테마에서 업로드 직전 영상까지</div></div>
+      <div class="status">FFmpeg 준비됨 · API 사용 안 함</div>
+    </div>
+    <div class="flow">
+      <div class="card">
+        <h2>오늘 만들 영상의 테마</h2>
+        <p class="muted">테마를 입력하면 Suno 음악 계획과 이미지 제작 지시서를 먼저 만듭니다.</p>
+        <textarea id="theme">비 오는 서울의 깊은 밤에 잠들며 듣는 느린 피아노 재즈</textarea>
+        <button id="start" type="button">제작 시작 미리보기</button>
+      </div>
+      <div class="card">
+        <h2>제작 진행</h2>
+        <p id="summary" class="muted">제작 시작을 누르면 아래 단계가 위에서 아래로 차례대로 진행됩니다.</p>
+        <div class="progress"><div id="bar" class="bar"></div></div>
+        <div id="steps" class="steps">
+          <div class="step"><span class="dot"></span>1. 테마 분석과 제작 방향 결정</div>
+          <div class="step"><span class="dot"></span>2. Suno용 음악 제작 계획 생성</div>
+          <div class="step"><span class="dot"></span>3. Suno 음악과 대표 이미지 수동 준비</div>
+          <div class="step"><span class="dot"></span>4. 준비된 음악과 이미지 확인</div>
+          <div class="step"><span class="dot"></span>5. 영상용 이미지 완성</div>
+          <div class="step"><span class="dot"></span>6. 음악 파일 분석과 챕터 계산</div>
+          <div class="step"><span class="dot"></span>7. 음악 연결과 3회 반복</div>
+          <div class="step"><span class="dot"></span>8. 최종 영상 생성</div>
+          <div class="step"><span class="dot"></span>9. 업로드 문구 생성</div>
+          <div class="step"><span class="dot"></span>10. 완성 영상 자동검사</div>
+          <div class="step"><span class="dot"></span>11. 결과물 정리</div>
+        </div>
+      </div>
+      <div id="result" class="card result">
+        <div><h2>제작 완료</h2><div class="muted">YouTube 업로드 직전 결과물이 준비되었습니다.</div></div>
+        <div class="files">YouTube_Final.mp4<br>Cover.jpg<br>Title.txt · Description.txt · Chapters.txt</div>
+        <button type="button">결과 폴더 열기</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    const start = document.getElementById('start');
+    const theme = document.getElementById('theme');
+    const steps = [...document.querySelectorAll('.step')];
+    const bar = document.getElementById('bar');
+    const result = document.getElementById('result');
+    const summary = document.getElementById('summary');
+    start.addEventListener('click', async () => {
+      if (!theme.value.trim()) { theme.focus(); return; }
+      start.disabled = true;
+      result.classList.remove('visible');
+      steps.forEach(step => step.className = 'step');
+      for (let index = 0; index < steps.length; index += 1) {
+        steps[index].classList.add('active');
+        summary.textContent = `진행 중: ${steps[index].textContent.trim()}`;
+        bar.style.width = `${Math.round((index / steps.length) * 100)}%`;
+        await new Promise(resolve => setTimeout(resolve, 420));
+        steps[index].classList.remove('active');
+        steps[index].classList.add('done');
+      }
+      bar.style.width = '100%';
+      summary.textContent = '모든 제작 단계가 완료되었습니다.';
+      result.classList.add('visible');
+      start.disabled = false;
+    });
+  </script>
+</body>
+</html>
