@@ -32,7 +32,16 @@ class PlannerTests(unittest.TestCase):
         plan = create_plan("비 오는 서울의 밤")
         self.assertEqual(len(plan["tracks"]), 8)
         self.assertEqual([track["index"] for track in plan["tracks"]], list(range(1, 9)))
-        self.assertTrue(all("no vocals" in track["prompt"] for track in plan["tracks"]))
+        self.assertEqual(
+            [track["vocalMode"] for track in plan["tracks"]],
+            ["vocal", "instrumental"] * 4,
+        )
+        self.assertTrue(
+            all("Original lyrics" in track["prompt"] for track in plan["tracks"][::2])
+        )
+        self.assertTrue(
+            all("no vocals" in track["prompt"] for track in plan["tracks"][1::2])
+        )
 
     def test_blank_theme_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
@@ -69,6 +78,9 @@ class ProjectTests(unittest.TestCase):
                 root = Path(temp) / manifest["projectId"]
                 self.assertEqual(manifest["status"], "waiting_for_files")
                 self.assertTrue((root / "Suno_Prompts.txt").exists())
+                guide = (root / "Suno_Prompts.txt").read_text(encoding="utf-8")
+                self.assertIn("01. Opening Glow [가사·보컬]", guide)
+                self.assertIn("02. Quiet Window [연주곡]", guide)
                 self.assertTrue((root / "Image_Prompt.txt").exists())
                 self.assertTrue((root / "work" / "tracks").is_dir())
                 self.assertTrue((root / "work" / "image").is_dir())

@@ -1,6 +1,6 @@
 # API-Free MVP Test Report
 > Created: 2026-08-11 14:34
-> Last Updated: 2026-08-11 15:51
+> Last Updated: 2026-08-11 15:58
 
 ## 1. Scope
 
@@ -11,7 +11,7 @@
 | Test | Status | Evidence |
 |:---|:---:|:---|
 | Python 문법 검사 | Pass | `python3 -m compileall -q app tests run.py` |
-| 단위 테스트 | Pass | 테마 계획, 프로젝트 ID, 타임스탬프, 세트 3회 반복 |
+| 단위 테스트 | Pass | 테마 계획, 보컬·연주 교대 규칙, 프로젝트 ID, 타임스탬프, 세트 3회 반복 |
 | 프로젝트 생성 | Pass | 지시서와 음악·이미지 입력 폴더 생성 |
 | 짧은 미디어 통합검사 | Pass | 임시 음원 2개와 이미지로 3회 반복 MP4 생성 |
 | 결과 규격 검사 | Pass | 1920x1080, 24fps, H.264, AAC stereo |
