@@ -32,30 +32,38 @@
     .result.visible { display:flex; }
     .files { color:#cdeedd; font-size:13px; line-height:1.7; }
     @media (max-width:760px) { .topbar,.result { align-items:flex-start; gap:12px; flex-direction:column; } }
+    .drop { margin:14px 0; padding:26px 18px; border:1px dashed #3a4255; border-radius:14px; background:#0f1219; color:#9ca6b8; font-size:14px; text-align:center; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    .chip { padding:6px 11px; border:1px solid #3a4255; border-radius:99px; background:#10141c; color:#ead9ac; font-size:13px; }
   </style>
 </head>
 <body>
   <div class="page">
     <div class="topbar">
-      <div><h1>YouTube Music Auto</h1><div class="muted">테마에서 업로드 직전 영상까지</div></div>
+      <div><h1>YouTube Music Auto</h1><div class="muted">썸네일 분위기에서 업로드 직전 영상까지</div></div>
       <div class="status">FFmpeg 준비됨 · API 사용 안 함</div>
     </div>
     <div class="flow">
       <div class="card">
-        <h2>오늘 만들 영상의 테마</h2>
-        <p class="muted">테마를 입력하면 Suno 음악 계획과 이미지 제작 지시서를 먼저 만듭니다.</p>
+        <h2>썸네일 이미지와 테마</h2>
+        <p class="muted">먼저 썸네일 이미지를 등록하면 밝기·채도·대비·색온도를 분석해 그 분위기에 맞는 Suno 곡 프롬프트를 만듭니다.</p>
+        <div class="drop">night_street.jpg 등록됨 · 다시 눌러 다른 이미지 선택</div>
         <textarea id="theme">비 오는 서울의 깊은 밤에 잠들며 듣는 느린 피아노 재즈</textarea>
-        <button id="start" type="button">제작 시작 미리보기</button>
+        <button id="start" type="button">분위기 분석하고 프로젝트 만들기</button>
       </div>
       <div class="card">
         <h2>제작 진행</h2>
         <p id="summary" class="muted">제작 시작을 누르면 아래 단계가 위에서 아래로 차례대로 진행됩니다.</p>
+        <div class="chips">
+          <span class="chip">깊은 어둠</span><span class="chip">절제된 색감</span>
+          <span class="chip">부드러운 대비</span><span class="chip">차가운 색조</span>
+        </div>
         <div class="progress"><div id="bar" class="bar"></div></div>
         <div id="steps" class="steps">
           <div class="step"><span class="dot"></span>1. 테마 분석과 제작 방향 결정</div>
-          <div class="step"><span class="dot"></span>2. Suno용 음악 제작 계획 생성</div>
-          <div class="step"><span class="dot"></span>3. Suno 음악과 대표 이미지 수동 준비</div>
-          <div class="step"><span class="dot"></span>4. 준비된 음악과 이미지 확인</div>
+          <div class="step"><span class="dot"></span>2. 썸네일 분위기 분석</div>
+          <div class="step"><span class="dot"></span>3. 분위기를 반영한 Suno 음악 제작 계획 생성</div>
+          <div class="step"><span class="dot"></span>4. Suno 음악 수동 준비</div>
           <div class="step"><span class="dot"></span>5. 영상용 이미지 완성</div>
           <div class="step"><span class="dot"></span>6. 음악 파일 분석과 챕터 계산</div>
           <div class="step"><span class="dot"></span>7. 음악 연결과 3회 반복</div>

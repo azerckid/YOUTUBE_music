@@ -1,6 +1,6 @@
 # Backlog
 > Created: 2026-08-11 13:53
-> Last Updated: 2026-08-11 18:54
+> Last Updated: 2026-08-15
 
 ## ToDo
 
@@ -267,6 +267,40 @@
 - Document Sync Check:
   - [x] 상태 머신, 로컬 HTTP와 오류 스키마 문서 갱신
   - [x] 화면 실패 상태와 실제 구조화 오류 표시 일치
+
+### [x] TASK-008: 썸네일 분위기 분석 기반 프롬프트 생성
+
+- Status: Done
+- Related Concept Docs:
+  - [Product Specifications](../01_Concept_Design/03_PRODUCT_SPECS.md) - FR-02, FR-02a 분위기 분석과 지시서 변환
+- Related UI Docs:
+  - [Screen Flow](../02_UI_Screens/00_SCREEN_FLOW.md) - 썸네일 등록이 앞선 사용자 흐름
+  - [UI Design](../02_UI_Screens/01_UI_DESIGN.md) - 등록·미리보기·분석 결과 상태
+- Related HTML Preview:
+  - [Main Flow Preview](../02_UI_Screens/previews/01_MAIN_FLOW_PREVIEW.html) - 썸네일 등록과 분위기 태그 표시 기준
+- Related Technical Docs:
+  - [Data Schema](../03_Technical_Specs/01_DB_SCHEMA.md) - `mood`와 `thumbnail` 필드
+  - [API Specifications](../03_Technical_Specs/02_API_SPECS.md) - `POST /api/projects` base64 업로드 계약
+- Related QA Docs:
+  - [Test Scenarios](../05_QA_Validation/01_TEST_SCENARIOS.md) - TS-10, TS-11, TS-12
+- Implementation Preconditions:
+  - [x] 분석 방식, 테마 입력 유지 여부와 이미지 전달 방식에 대한 사용자 결정 확인 완료
+  - [x] 입력 순서 반전이 기존 단계와 상태 머신에 미치는 영향 확인 완료
+  - [x] 화면별 입력·출력 데이터와 상태 변화 확인 완료
+  - [x] 로딩·빈 상태·오류 상태 확인 완료
+  - [x] API 없는 1차 범위 유지 확인 완료
+- Acceptance Criteria:
+  - [x] 썸네일 등록이 테마 입력과 함께 프로젝트 생성의 필수 입력이 됨
+  - [x] 밝기·채도·대비·색온도를 로컬에서 측정해 분위기 태그 4개를 생성함
+  - [x] 서로 다른 분위기의 이미지가 서로 다른 Suno 프롬프트를 만들어냄
+  - [x] 절대 채도를 사용해 어두운 이미지가 선명한 색감으로 오분류되지 않음
+  - [x] 형식·해상도·용량 검증 실패 시 프로젝트 폴더를 만들지 않음
+  - [x] 등록한 썸네일이 그대로 `Cover.jpg`의 원본으로 사용됨
+  - [x] `Image_Prompt.txt` 대신 `Cover_Mood.txt`를 생성함
+  - [x] 28개 자동검사가 통과하고 브라우저에서 등록·분석·대기 상태가 확인됨
+- Document Sync Check:
+  - [x] 제품, UI, 데이터 스키마와 API 문서에 입력 순서 변경을 반영함
+  - [x] HTML UI Preview와 실제 화면의 의도하지 않은 불일치 없음
 
 ## 4. Related Documents
 

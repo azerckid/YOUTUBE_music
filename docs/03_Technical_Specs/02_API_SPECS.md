@@ -1,6 +1,6 @@
 # External API Specifications
 > Created: 2026-08-11 13:53
-> Last Updated: 2026-08-11 15:09
+> Last Updated: 2026-08-15
 
 ## 1. 원칙
 
@@ -13,14 +13,29 @@
 - 바인딩: `127.0.0.1`
 - `GET /api/health`: FFmpeg와 FFprobe 준비 상태
 - `GET /api/latest`: 마지막 로컬 프로젝트 상태
-- `POST /api/projects`: 테마로 프로젝트와 수동 제작 지시서 생성
+- `POST /api/projects`: 썸네일 이미지와 테마로 프로젝트와 음악 제작 지시서 생성
 - `GET /api/projects/{projectId}`: 진행 상태 조회
-- `POST /api/projects/{projectId}/continue`: 준비된 음악과 이미지로 영상 제작 시작
+- `POST /api/projects/{projectId}/continue`: 준비된 음악과 등록된 썸네일로 영상 제작 시작
 - `POST /api/projects/{projectId}/open`: Finder에서 허용된 프로젝트 하위 폴더 열기
 
 이는 로컬 프로그램 내부 통신이며 외부 서비스 과금 API가 아니다.
 
+### POST /api/projects
+
+```json
+{ "theme": "비 오는 서울의 깊은 밤", "thumbnail": "<base64로 인코딩한 이미지 바이트>" }
+```
+
+- 이미지는 multipart 대신 base64 문자열로 받는다. 표준 라이브러리에서 `cgi` 모듈이 제거되어 multipart 파서를 직접 구현해야 하기 때문이다.
+- 요청 본문 상한은 30MB이며 디코딩 후 이미지 상한은 20MB이다.
+- 형식, 최소 해상도(640×360)와 용량 검증은 프로젝트 폴더를 만들기 전에 수행한다. 검증 실패 시 폴더를 만들지 않고 `400`을 반환한다.
+- 응답은 `mood`와 `thumbnail` 경로를 포함한 매니페스트이며 `201`을 반환한다.
+- 페이지 CSP는 등록 직후 미리보기를 위해 `img-src 'self' data: blob:`을 허용한다.
+
+### 실행 제어
+
 - `continue`는 `waiting_for_files` 또는 `failed` 상태에서만 허용한다.
+- 썸네일 분석은 프로젝트 생성 요청 안에서 동기로 끝내고 별도 단계로 폴링하지 않는다.
 - 실행 응답 전에 매니페스트 상태를 `running`으로 저장하여 중복 요청을 차단한다.
 - 완료된 프로젝트의 재실행은 거부하고 새 프로젝트 생성을 안내한다.
 
@@ -55,6 +70,8 @@ download_track(provider_job_id, destination) -> local_path
 
 ### 이미지 생성
 
+1차 버전은 사용자가 썸네일을 직접 등록하므로 이미지 생성 API를 사용하지 않는다. 아래는 완전 자동화 단계까지 보류한 계약이다.
+
 - 권장 모델: `gpt-image-2`
 - 공식 이미지 생성 엔드포인트 사용
 - 입력: 테마 기반 프롬프트, 16:9에 가까운 가로 형식, 품질 설정
@@ -63,6 +80,7 @@ download_track(provider_job_id, destination) -> local_path
 ### 텍스트 생성
 
 - 용도: 테마 분석, 곡 계획, 곡 제목, Suno 프롬프트, 영상 제목·설명·해시태그
+- 1차 버전의 분위기 분석은 텍스트 생성 API가 아니라 로컬 색상 통계로 대체한다.
 - 출력은 JSON 스키마로 검증 가능한 구조를 사용한다.
 
 ### 과금

@@ -7,7 +7,8 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
-from .planner import create_plan, safe_project_id, write_manual_guides
+from .mood import analyze_thumbnail
+from .planner import clean_theme, create_plan, safe_project_id, write_manual_guides
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -63,8 +64,11 @@ def save_project(manifest: dict) -> None:
     atomic_write_json(project_path(manifest["projectId"]) / "project.json", manifest)
 
 
-def create_project(theme: str) -> dict:
-    plan = create_plan(theme)
+def create_project(theme: str, thumbnail_bytes: bytes) -> dict:
+    cleaned_theme = clean_theme(theme)
+    image, suffix, mood = analyze_thumbnail(thumbnail_bytes)
+    image.close()
+    plan = create_plan(cleaned_theme, mood)
     base_project_id = safe_project_id(plan["theme"])
     project_id = base_project_id
     counter = 2
@@ -81,10 +85,14 @@ def create_project(theme: str) -> dict:
     for relative in ("work/tracks", "work/image", "work/audio", "logs", "output"):
         (directory / relative).mkdir(parents=True)
 
+    thumbnail_path = directory / "work" / "image" / f"Thumbnail{suffix}"
+    thumbnail_path.write_bytes(thumbnail_bytes)
+
     steps = [
         {"id": "theme_plan", "label": "테마 분석과 제작 방향", "status": "completed"},
+        {"id": "image_analysis", "label": "썸네일 분위기 분석", "status": "completed"},
         {"id": "music_plan", "label": "Suno 음악 제작 계획", "status": "completed"},
-        {"id": "manual_assets", "label": "음악과 이미지 준비", "status": "waiting"},
+        {"id": "manual_assets", "label": "Suno 음악 준비", "status": "waiting"},
         {"id": "cover", "label": "영상용 이미지 완성", "status": "pending"},
         {"id": "audio_analysis", "label": "음악 분석과 챕터 계산", "status": "pending"},
         {"id": "audio_assembly", "label": "음악 연결과 3회 반복", "status": "pending"},
@@ -102,11 +110,12 @@ def create_project(theme: str) -> dict:
         "currentStep": "manual_assets",
         "repeatCount": 3,
         "direction": plan["direction"],
-        "imagePrompt": plan["imagePrompt"],
+        "mood": plan["mood"],
+        "thumbnail": str(thumbnail_path),
         "tracks": plan["tracks"],
         "steps": steps,
         "progress": 20,
-        "message": "Suno 음악과 대표 이미지를 준비해 지정 폴더에 넣어 주세요.",
+        "message": "썸네일 분위기에 맞춘 Suno 프롬프트를 만들었습니다. 음악을 준비해 지정 폴더에 넣어 주세요.",
         "output": None,
         "validation": None,
         "assetSignature": None,
@@ -114,7 +123,7 @@ def create_project(theme: str) -> dict:
         "createdAt": now_iso(),
         "updatedAt": now_iso(),
     }
-    write_manual_guides(directory, plan)
+    write_manual_guides(directory, plan, thumbnail_path)
     save_project(manifest)
     return manifest
 
