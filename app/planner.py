@@ -32,16 +32,27 @@ def create_plan(theme: str) -> dict:
 
     tracks = []
     for index, title in enumerate(TRACK_TITLES, start=1):
-        prompt = (
-            f"Instrumental jazz inspired by: {cleaned}. "
-            "Warm acoustic piano, upright bass, soft brushed drums, subtle saxophone, "
-            "slow relaxed tempo, cohesive late-night atmosphere, no vocals, "
-            f"track {index} of a continuous album, gentle ending."
-        )
+        vocal_mode = "vocal" if index % 2 == 1 else "instrumental"
+        if vocal_mode == "vocal":
+            prompt = (
+                f"Vocal jazz song inspired by: {cleaned}. "
+                "Original lyrics that reflect the theme, warm intimate lead vocal, "
+                "acoustic piano, upright bass, soft brushed drums, subtle saxophone, "
+                "slow relaxed tempo, cohesive atmosphere, "
+                f"track {index} of a continuous album, gentle ending."
+            )
+        else:
+            prompt = (
+                f"Instrumental jazz inspired by: {cleaned}. "
+                "Warm acoustic piano, upright bass, soft brushed drums, subtle saxophone, "
+                "slow relaxed tempo, cohesive atmosphere, no vocals, "
+                f"track {index} of a continuous album, gentle ending."
+            )
         tracks.append(
             {
                 "index": index,
                 "title": title,
+                "vocalMode": vocal_mode,
                 "prompt": prompt,
                 "status": "planned",
                 "sourcePath": None,
@@ -54,7 +65,7 @@ def create_plan(theme: str) -> dict:
         "theme": cleaned,
         "direction": (
             f"'{cleaned}'의 정서를 중심으로 피아노, 콘트라베이스, 브러시 드럼이 "
-            "자연스럽게 이어지는 느린 인스트루멘털 재즈 앨범을 제작한다."
+            "자연스럽게 이어지며 보컬곡과 연주곡이 번갈아 나오는 느린 재즈 앨범을 제작한다."
         ),
         "imagePrompt": (
             f"Cinematic still image for a relaxing jazz album inspired by: {cleaned}. "
@@ -79,9 +90,10 @@ def write_manual_guides(project_dir: Path, plan: dict) -> None:
         "",
     ]
     for track in plan["tracks"]:
+        mode_label = "가사·보컬" if track["vocalMode"] == "vocal" else "연주곡"
         lines.extend(
             [
-                f"{track['index']:02d}. {track['title']}",
+                f"{track['index']:02d}. {track['title']} [{mode_label}]",
                 track["prompt"],
                 "",
             ]
@@ -103,4 +115,3 @@ def write_manual_guides(project_dir: Path, plan: dict) -> None:
         "5. 프로그램 화면으로 돌아와 '파일 확인 후 영상 만들기'를 누릅니다.\n",
         encoding="utf-8",
     )
-

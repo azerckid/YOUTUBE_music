@@ -1,6 +1,6 @@
 # Backlog
 > Created: 2026-08-11 13:53
-> Last Updated: 2026-08-11 15:51
+> Last Updated: 2026-08-11 18:54
 
 ## ToDo
 
@@ -217,6 +217,9 @@
   - [x] API 없는 1차 범위에 대한 사용자 구현 지시 확인 완료
 - Acceptance Criteria:
   - [x] 테마로 Suno와 이미지 제작 지시서가 생성됨
+  - [x] Suno 지시서가 홀수 가사·보컬곡과 짝수 연주곡을 교대로 지정함
+  - [x] 음악 분석 후에도 곡별 `vocalMode`가 보존됨
+  - [x] 업로드 문구가 보컬곡과 연주곡의 혼합 구성을 정확히 설명함
   - [x] 음악 파일을 이름순으로 분석하고 첫 세트 챕터를 계산함
   - [x] 전체 음악 세트가 세 번 반복됨
   - [x] 1920x1080, 24fps, H.264, AAC MP4가 생성됨
@@ -242,7 +245,7 @@
   - [API Specifications](../03_Technical_Specs/02_API_SPECS.md) - 실행 상태와 요청 가드
 - Related QA Docs:
   - [Test Scenarios](../05_QA_Validation/01_TEST_SCENARIOS.md) - 중복, 복구, 재개와 보안 시나리오
-  - [API-Free MVP Test Report](../05_QA_Validation/04_API_FREE_MVP_TEST_REPORT.md) - 16개 자동검사 결과
+  - [API-Free MVP Test Report](../05_QA_Validation/04_API_FREE_MVP_TEST_REPORT.md) - 18개 자동검사 결과
 - Implementation Preconditions:
   - [x] 사용자 코드 리뷰와 수정 승인 확인 완료
   - [x] 관련 제품, UI, 기술과 QA 문서 확인 완료

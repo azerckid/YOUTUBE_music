@@ -9,10 +9,12 @@ from unittest.mock import patch
 
 from app.media import (
     ProductionError,
+    analyze_tracks,
     ensure_disk_space,
     format_timestamp,
     resolve_font_path,
     write_concat_file,
+    write_metadata,
 )
 from app.planner import create_plan, safe_project_id
 from app.project import (
@@ -32,7 +34,16 @@ class PlannerTests(unittest.TestCase):
         plan = create_plan("비 오는 서울의 밤")
         self.assertEqual(len(plan["tracks"]), 8)
         self.assertEqual([track["index"] for track in plan["tracks"]], list(range(1, 9)))
-        self.assertTrue(all("no vocals" in track["prompt"] for track in plan["tracks"]))
+        self.assertEqual(
+            [track["vocalMode"] for track in plan["tracks"]],
+            ["vocal", "instrumental"] * 4,
+        )
+        self.assertTrue(
+            all("Original lyrics" in track["prompt"] for track in plan["tracks"][::2])
+        )
+        self.assertTrue(
+            all("no vocals" in track["prompt"] for track in plan["tracks"][1::2])
+        )
 
     def test_blank_theme_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
@@ -41,6 +52,16 @@ class PlannerTests(unittest.TestCase):
     def test_korean_theme_gets_safe_id(self) -> None:
         project_id = safe_project_id("서울의 밤", datetime(2026, 8, 11, 15, 30, 0))
         self.assertRegex(project_id, r"^20260811-153000-[a-f0-9]{10}$")
+
+    def test_track_analysis_preserves_vocal_mode(self) -> None:
+        manifest = create_plan("비 오는 서울의 밤")
+        tracks = [Path(f"{index:02d}.mp3") for index in range(1, 9)]
+        with patch("app.media.probe_duration", return_value=60.0):
+            analyze_tracks(manifest, tracks, Path("unused.log"))
+        self.assertEqual(
+            [track["vocalMode"] for track in manifest["tracks"]],
+            ["vocal", "instrumental"] * 4,
+        )
 
 
 class MediaTests(unittest.TestCase):
@@ -60,6 +81,21 @@ class MediaTests(unittest.TestCase):
             self.assertIn("02.m4a", lines[1])
             self.assertIn("01.m4a", lines[2])
 
+    def test_metadata_describes_vocal_and_instrumental_jazz(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            write_metadata(
+                output,
+                "서울의 밤",
+                [{"title": "Opening Glow", "start": 0.0}],
+                180.0,
+            )
+            title = (output / "Title.txt").read_text(encoding="utf-8")
+            description = (output / "Description.txt").read_text(encoding="utf-8")
+            self.assertIn("Vocal & Instrumental Jazz", title)
+            self.assertIn("보컬이 있는 곡과 연주곡", description)
+            self.assertNotIn("SleepMusic", description)
+
 
 class ProjectTests(unittest.TestCase):
     def test_project_creation_writes_manual_guides(self) -> None:
@@ -69,6 +105,9 @@ class ProjectTests(unittest.TestCase):
                 root = Path(temp) / manifest["projectId"]
                 self.assertEqual(manifest["status"], "waiting_for_files")
                 self.assertTrue((root / "Suno_Prompts.txt").exists())
+                guide = (root / "Suno_Prompts.txt").read_text(encoding="utf-8")
+                self.assertIn("01. Opening Glow [가사·보컬]", guide)
+                self.assertIn("02. Quiet Window [연주곡]", guide)
                 self.assertTrue((root / "Image_Prompt.txt").exists())
                 self.assertTrue((root / "work" / "tracks").is_dir())
                 self.assertTrue((root / "work" / "image").is_dir())

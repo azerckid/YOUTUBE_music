@@ -1,6 +1,6 @@
 # Data and Project Schema
 > Created: 2026-08-11 13:53
-> Last Updated: 2026-08-11 15:51
+> Last Updated: 2026-08-11 18:54
 
 ## 1. 저장 전략
 
@@ -35,6 +35,7 @@ MVP에는 서버 데이터베이스를 사용하지 않는다. 한 명의 로컬
 |:---|:---|:---|
 | index | integer | 1부터 시작하는 재생 순서 |
 | title | string | 곡 제목 |
+| vocalMode | string | 홀수 곡은 `vocal`, 짝수 곡은 `instrumental`; 음악 분석 후에도 보존 |
 | prompt | string | Suno 생성 프롬프트 |
 | providerJobId | string or null | 외부 생성 작업 식별자 |
 | status | string | planned, generating, ready, failed |

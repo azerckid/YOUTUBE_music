@@ -289,16 +289,16 @@ def write_metadata(output_dir: Path, theme: str, chapters: list[dict], total: fl
     chapter_lines = [
         f"{format_timestamp(item['start'])} {item['title']}" for item in chapters
     ]
-    title = f"{theme} | Relaxing Jazz for Sleep, Study & Night"
+    title = f"{theme} | Vocal & Instrumental Jazz · Long Play"
     if len(title) > 100:
         title = title[:97].rstrip() + "..."
     description = (
         f"{theme}\n\n"
-        "조용히 쉬거나 집중할 때 함께할 수 있는 긴 호흡의 재즈 플레이리스트입니다.\n"
+        "가사와 보컬이 있는 곡과 연주곡이 번갈아 이어지는 긴 호흡의 재즈 플레이리스트입니다.\n"
         "전체 곡 세트는 세 번 반복됩니다.\n\n"
         "Track list\n"
         + "\n".join(chapter_lines)
-        + "\n\n#Jazz #RelaxingJazz #SeoulJazz #StudyMusic #SleepMusic\n"
+        + "\n\n#Jazz #VocalJazz #InstrumentalJazz #SeoulJazz #LongPlay\n"
     )
     (output_dir / "Title.txt").write_text(title + "\n", encoding="utf-8")
     (output_dir / "Description.txt").write_text(description, encoding="utf-8")
@@ -369,6 +369,9 @@ def analyze_tracks(
         {
             "index": item["index"],
             "title": item["title"],
+            "vocalMode": planned[item["index"] - 1].get("vocalMode")
+            if item["index"] <= len(planned)
+            else None,
             "prompt": planned[item["index"] - 1].get("prompt", "")
             if item["index"] <= len(planned)
             else "",

@@ -1,6 +1,6 @@
 # API-Free MVP Test Report
 > Created: 2026-08-11 14:34
-> Last Updated: 2026-08-11 15:51
+> Last Updated: 2026-08-11 18:54
 
 ## 1. Scope
 
@@ -11,7 +11,9 @@
 | Test | Status | Evidence |
 |:---|:---:|:---|
 | Python 문법 검사 | Pass | `python3 -m compileall -q app tests run.py` |
-| 단위 테스트 | Pass | 테마 계획, 프로젝트 ID, 타임스탬프, 세트 3회 반복 |
+| 단위 테스트 | Pass | 테마 계획, 보컬·연주 교대 규칙, 프로젝트 ID, 타임스탬프, 세트 3회 반복 |
+| 보컬 유형 보존 | Pass | 음악 분석 전후 `vocalMode` 교대 배열 유지 |
+| 혼합 구성 메타데이터 | Pass | 제목·설명·해시태그에서 보컬곡과 연주곡 혼합 구성을 안내 |
 | 프로젝트 생성 | Pass | 지시서와 음악·이미지 입력 폴더 생성 |
 | 짧은 미디어 통합검사 | Pass | 임시 음원 2개와 이미지로 3회 반복 MP4 생성 |
 | 결과 규격 검사 | Pass | 1920x1080, 24fps, H.264, AAC stereo |
@@ -23,7 +25,7 @@
 | 로컬 요청 보안 | Pass | 실제 서버에서 정상 요청 200, 외부 Host·Origin 403, `0.0.0.0` 실행 거부 |
 | 안전 가드 | Pass | 경로 이탈, 저장 공간 부족과 글꼴 누락 검사 |
 
-총 16개 자동 테스트가 통과했다.
+총 18개 자동 테스트가 통과했다.
 
 ## 3. Remaining Validation
 
