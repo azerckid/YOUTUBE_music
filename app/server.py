@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import ipaddress
 import json
 import shutil
@@ -26,6 +28,12 @@ from .project import (
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX_PATH = ROOT / "web" / "index.html"
+MAX_UPLOAD_REQUEST_BYTES = 30_000_000
+# blob: 과 data: 는 등록한 썸네일을 서버에 올리기 전에 화면에서 미리 보기 위해 필요하다.
+CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; style-src 'self' 'unsafe-inline'; "
+    "script-src 'self' 'unsafe-inline'; img-src 'self' data: blob:"
+)
 ACTIVE_JOBS: set[str] = set()
 ACTIVE_JOBS_LOCK = threading.Lock()
 
@@ -78,7 +86,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'")
+        self.send_header("Content-Security-Policy", CONTENT_SECURITY_POLICY)
         self.end_headers()
         self.wfile.write(body)
 
@@ -96,9 +104,9 @@ class Handler(BaseHTTPRequestHandler):
                 return False
         return True
 
-    def read_json(self) -> dict:
+    def read_json(self, limit: int = 1_000_000) -> dict:
         length = int(self.headers.get("Content-Length", "0"))
-        if length <= 0 or length > 1_000_000:
+        if length <= 0 or length > limit:
             raise ValueError("요청 크기가 올바르지 않습니다.")
         return json.loads(self.rfile.read(length).decode("utf-8"))
 
@@ -112,7 +120,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'")
+            self.send_header("Content-Security-Policy", CONTENT_SECURITY_POLICY)
             self.end_headers()
             self.wfile.write(body)
             return
@@ -145,8 +153,15 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         try:
             if parsed.path == "/api/projects":
-                payload = self.read_json()
-                manifest = create_project(str(payload.get("theme", "")))
+                payload = self.read_json(limit=MAX_UPLOAD_REQUEST_BYTES)
+                encoded = payload.get("thumbnail")
+                if not isinstance(encoded, str) or not encoded:
+                    raise ValueError("썸네일 이미지를 함께 등록해 주세요.")
+                try:
+                    thumbnail_bytes = base64.b64decode(encoded, validate=True)
+                except (binascii.Error, ValueError) as error:
+                    raise ValueError("썸네일 이미지 데이터를 해석할 수 없습니다.") from error
+                manifest = create_project(str(payload.get("theme", "")), thumbnail_bytes)
                 self.send_json(HTTPStatus.CREATED, manifest)
                 return
             if parsed.path.endswith("/continue") and parsed.path.startswith("/api/projects/"):

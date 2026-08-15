@@ -16,6 +16,7 @@ from app.media import (
     write_concat_file,
     write_metadata,
 )
+from app.mood import MAX_IMAGE_BYTES, analyze_thumbnail, load_thumbnail
 from app.planner import create_plan, safe_project_id
 from app.project import (
     ProjectStateError,
@@ -27,11 +28,56 @@ from app.project import (
     save_project,
 )
 from app.server import host_is_allowed, origin_is_allowed
+from tests.support import bright_thumbnail, dark_thumbnail, gradient_bytes
+
+
+def sample_mood(data: bytes | None = None) -> dict:
+    return analyze_thumbnail(data or dark_thumbnail())[2]
+
+
+class MoodTests(unittest.TestCase):
+    def test_dark_cool_cover_is_read_as_dark_and_cool(self) -> None:
+        mood = sample_mood(dark_thumbnail())
+        self.assertIn("깊은 어둠", mood["tags"])
+        self.assertIn("차가운 색조", mood["tags"])
+        self.assertLess(mood["brightness"], 0.22)
+        self.assertLess(mood["warmth"], 0.35)
+        self.assertIn("very slow tempo", mood["musicPhrase"])
+
+    def test_bright_warm_cover_produces_a_different_direction(self) -> None:
+        dark = sample_mood(dark_thumbnail())
+        bright = sample_mood(bright_thumbnail())
+        self.assertIn("밝고 열린 빛", bright["tags"])
+        self.assertIn("따뜻한 색조", bright["tags"])
+        self.assertGreater(bright["brightness"], dark["brightness"])
+        self.assertGreater(bright["warmth"], dark["warmth"])
+        self.assertNotEqual(bright["musicPhrase"], dark["musicPhrase"])
+
+    def test_palette_and_summary_are_reported(self) -> None:
+        mood = sample_mood()
+        self.assertEqual(len(mood["tags"]), 4)
+        self.assertEqual(mood["summary"], " · ".join(mood["tags"]))
+        self.assertTrue(all(color.startswith("#") for color in mood["palette"]))
+
+    def test_undersized_image_is_rejected(self) -> None:
+        with self.assertRaises(ValueError) as captured:
+            load_thumbnail(gradient_bytes(size=(320, 180)))
+        self.assertIn("640", str(captured.exception))
+
+    def test_non_image_payload_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            load_thumbnail(b"this is definitely not an image")
+
+    def test_empty_and_oversized_payloads_are_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            load_thumbnail(b"")
+        with self.assertRaises(ValueError):
+            load_thumbnail(b"\x00" * (MAX_IMAGE_BYTES + 1))
 
 
 class PlannerTests(unittest.TestCase):
     def test_plan_contains_eight_ordered_tracks(self) -> None:
-        plan = create_plan("비 오는 서울의 밤")
+        plan = create_plan("비 오는 서울의 밤", sample_mood())
         self.assertEqual(len(plan["tracks"]), 8)
         self.assertEqual([track["index"] for track in plan["tracks"]], list(range(1, 9)))
         self.assertEqual(
@@ -45,16 +91,31 @@ class PlannerTests(unittest.TestCase):
             all("no vocals" in track["prompt"] for track in plan["tracks"][1::2])
         )
 
+    def test_every_prompt_carries_the_cover_mood(self) -> None:
+        mood = sample_mood()
+        plan = create_plan("비 오는 서울의 밤", mood)
+        self.assertTrue(
+            all(mood["musicPhrase"] in track["prompt"] for track in plan["tracks"])
+        )
+        self.assertIn(mood["summary"], plan["direction"])
+
+    def test_cover_mood_changes_the_generated_prompts(self) -> None:
+        dark = create_plan("같은 테마", sample_mood(dark_thumbnail()))
+        bright = create_plan("같은 테마", sample_mood(bright_thumbnail()))
+        self.assertNotEqual(
+            dark["tracks"][0]["prompt"], bright["tracks"][0]["prompt"]
+        )
+
     def test_blank_theme_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
-            create_plan("   ")
+            create_plan("   ", sample_mood())
 
     def test_korean_theme_gets_safe_id(self) -> None:
         project_id = safe_project_id("서울의 밤", datetime(2026, 8, 11, 15, 30, 0))
         self.assertRegex(project_id, r"^20260811-153000-[a-f0-9]{10}$")
 
     def test_track_analysis_preserves_vocal_mode(self) -> None:
-        manifest = create_plan("비 오는 서울의 밤")
+        manifest = create_plan("비 오는 서울의 밤", sample_mood())
         tracks = [Path(f"{index:02d}.mp3") for index in range(1, 9)]
         with patch("app.media.probe_duration", return_value=60.0):
             analyze_tracks(manifest, tracks, Path("unused.log"))
@@ -101,16 +162,38 @@ class ProjectTests(unittest.TestCase):
     def test_project_creation_writes_manual_guides(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             with patch("app.project.PROJECTS_ROOT", Path(temp)):
-                manifest = create_project("새벽 서울 피아노 재즈")
+                manifest = create_project("새벽 서울 피아노 재즈", dark_thumbnail())
                 root = Path(temp) / manifest["projectId"]
                 self.assertEqual(manifest["status"], "waiting_for_files")
                 self.assertTrue((root / "Suno_Prompts.txt").exists())
                 guide = (root / "Suno_Prompts.txt").read_text(encoding="utf-8")
                 self.assertIn("01. Opening Glow [가사·보컬]", guide)
                 self.assertIn("02. Quiet Window [연주곡]", guide)
-                self.assertTrue((root / "Image_Prompt.txt").exists())
+                self.assertIn(manifest["mood"]["summary"], guide)
+                self.assertTrue((root / "Cover_Mood.txt").exists())
+                self.assertFalse((root / "Image_Prompt.txt").exists())
                 self.assertTrue((root / "work" / "tracks").is_dir())
                 self.assertTrue((root / "work" / "image").is_dir())
+
+    def test_registered_thumbnail_is_stored_and_analyzed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            with patch("app.project.PROJECTS_ROOT", Path(temp)):
+                manifest = create_project("썸네일 등록 테스트", dark_thumbnail())
+                thumbnail = Path(manifest["thumbnail"])
+                statuses = {step["id"]: step["status"] for step in manifest["steps"]}
+                self.assertTrue(thumbnail.exists())
+                self.assertEqual(thumbnail.name, "Thumbnail.jpg")
+                self.assertEqual(thumbnail.read_bytes(), dark_thumbnail())
+                self.assertEqual(statuses["image_analysis"], "completed")
+                self.assertEqual(statuses["manual_assets"], "waiting")
+                self.assertIn("깊은 어둠", manifest["mood"]["tags"])
+
+    def test_project_is_not_created_when_thumbnail_is_invalid(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            with patch("app.project.PROJECTS_ROOT", Path(temp)):
+                with self.assertRaises(ValueError):
+                    create_project("잘못된 이미지", b"not an image at all")
+                self.assertEqual(list(Path(temp).iterdir()), [])
 
     def test_path_traversal_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
@@ -119,7 +202,7 @@ class ProjectTests(unittest.TestCase):
     def test_begin_run_is_immediate_and_rejects_duplicate(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             with patch("app.project.PROJECTS_ROOT", Path(temp)):
-                created = create_project("실행 상태 테스트")
+                created = create_project("실행 상태 테스트", dark_thumbnail())
                 running = begin_project_run(created["projectId"])
                 self.assertEqual(running["status"], "running")
                 with self.assertRaises(ProjectStateError):
@@ -128,7 +211,7 @@ class ProjectTests(unittest.TestCase):
     def test_interrupted_run_is_recovered_without_losing_completed_steps(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             with patch("app.project.PROJECTS_ROOT", Path(temp)):
-                manifest = create_project("복구 테스트")
+                manifest = create_project("복구 테스트", dark_thumbnail())
                 manifest["status"] = "running"
                 manifest["currentStep"] = "video_render"
                 for step in manifest["steps"]:

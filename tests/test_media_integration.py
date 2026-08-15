@@ -20,6 +20,7 @@ from app.media import (
     produce_project,
 )
 from app.project import begin_project_run, create_project, load_project, save_project
+from tests.support import dark_thumbnail
 
 
 class MediaIntegrationTests(unittest.TestCase):
@@ -59,10 +60,8 @@ class MediaIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             projects_root = Path(temp) / "projects"
             with patch("app.project.PROJECTS_ROOT", projects_root):
-                manifest = create_project("재시작 테스트")
+                manifest = create_project("재시작 테스트", dark_thumbnail())
                 root = projects_root / manifest["projectId"]
-                source_image = root / "work" / "image" / "cover.jpg"
-                Image.new("RGB", (1280, 720), (36, 43, 54)).save(source_image)
                 track = root / "work" / "tracks" / "01_track.wav"
                 subprocess.run(
                     [
@@ -102,11 +101,8 @@ class MediaIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             projects_root = Path(temp) / "projects"
             with patch("app.project.PROJECTS_ROOT", projects_root):
-                manifest = create_project("오디오 교체 테스트")
+                manifest = create_project("오디오 교체 테스트", dark_thumbnail())
                 root = projects_root / manifest["projectId"]
-                Image.new("RGB", (1280, 720), (36, 43, 54)).save(
-                    root / "work" / "image" / "cover.jpg"
-                )
                 track = root / "work" / "tracks" / "01_track.wav"
                 subprocess.run(
                     [

@@ -130,7 +130,10 @@ def discover_assets(project_id: str) -> tuple[list[Path], Path]:
     if not tracks:
         raise ProductionError("work/tracks 폴더에 음악 파일이 없습니다.")
     if not images:
-        raise ProductionError("work/image 폴더에 대표 이미지가 없습니다.")
+        raise ProductionError(
+            "work/image 폴더에 썸네일 이미지가 없습니다. "
+            "프로젝트를 만들 때 등록한 이미지가 지워졌는지 확인해 주세요."
+        )
     return tracks, images[0]
 
 
@@ -453,7 +456,8 @@ def produce_project(project_id: str) -> None:
         tracks, image = discover_assets(project_id)
         signature = asset_signature(tracks, image)
         generated_was_completed = any(
-            step.get("id") not in {"theme_plan", "music_plan", "manual_assets"}
+            step.get("id")
+            not in {"theme_plan", "image_analysis", "music_plan", "manual_assets"}
             and step.get("status") == "completed"
             for step in manifest["steps"]
         )
@@ -461,7 +465,7 @@ def produce_project(project_id: str) -> None:
             invalidate_generated_steps(manifest)
             clear_audio_cache(root / "work" / "audio")
         manifest["assetSignature"] = signature
-        update_step(manifest, "manual_assets", "completed", "음악과 이미지를 확인했습니다.", 30)
+        update_step(manifest, "manual_assets", "completed", "음악 파일을 확인했습니다.", 30)
 
         cover = output / "Cover.jpg"
         if step_status(manifest, "cover") != "completed" or not cover.exists():

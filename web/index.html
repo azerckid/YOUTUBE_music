@@ -40,6 +40,13 @@
     .error { margin-top:15px; color:#ffd4d4; background:#2b171b; border:1px solid #713d42; padding:13px 15px; border-radius:11px; font-size:14px; white-space:pre-line; }
     .result { border-color:#2e584b; background:#10231d; }
     .files { margin-top:14px; color:#cdeedd; font:13px/1.8 ui-monospace,SFMono-Regular,Menlo,monospace; white-space:pre-line; }
+    .drop { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; margin-top:18px; padding:26px 20px; min-height:150px; border:1px dashed #3a4255; border-radius:14px; background:#0f1219; color:var(--muted); font-size:14px; text-align:center; cursor:pointer; transition:border-color .2s,background .2s; }
+    .drop:hover,.drop.dragging { border-color:var(--gold); background:#141821; color:var(--text); }
+    .drop img { width:100%; max-width:420px; border-radius:10px; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+    .chip { padding:6px 11px; border:1px solid #3a4255; border-radius:99px; background:#10141c; color:#ead9ac; font-size:13px; }
+    .swatches { display:flex; gap:6px; margin-top:12px; }
+    .swatch { width:26px; height:26px; border-radius:7px; border:1px solid #2a3040; }
     @media (max-width:720px) { header { flex-direction:column; } .page { padding-top:26px; } .card { padding:19px; } }
   </style>
 </head>
@@ -54,24 +61,32 @@
     </header>
     <div class="flow">
       <section class="card">
-        <h2>오늘 만들 영상의 테마</h2>
-        <p class="muted">테마를 입력하면 Suno 음악 계획과 이미지 제작 지시서를 먼저 만듭니다.</p>
+        <h2>썸네일 이미지와 테마</h2>
+        <p class="muted">먼저 영상에 사용할 썸네일 이미지를 등록하면 밝기·채도·대비·색온도를 분석해 그 분위기에 맞는 Suno 곡 프롬프트를 만듭니다. 테마 문장은 영상 제목과 커버 문구에 사용합니다.</p>
+        <label class="drop" id="dropZone" for="thumbnail">
+          <img id="preview" class="hidden" alt="등록한 썸네일 미리보기">
+          <span id="dropText">이미지를 선택하거나 여기에 끌어다 놓으세요<br>JPG · PNG · WEBP · 최소 640×360 · 20MB 이하</span>
+        </label>
+        <input id="thumbnail" class="hidden" type="file" accept="image/jpeg,image/png,image/webp,image/tiff">
         <textarea id="theme" aria-label="오늘 만들 영상의 테마" placeholder="예: 비 오는 서울의 깊은 밤에 잠들며 듣는 느린 피아노 재즈"></textarea>
-        <button id="start" type="button">프로젝트 만들기</button>
+        <button id="start" type="button">분위기 분석하고 프로젝트 만들기</button>
         <div id="formError" class="error hidden" role="alert"></div>
       </section>
       <section id="progressCard" class="card hidden" aria-live="polite">
         <h2>제작 진행</h2>
         <p id="message" class="muted"></p>
+        <div id="mood" class="hidden">
+          <div id="moodChips" class="chips"></div>
+          <div id="moodSwatches" class="swatches"></div>
+        </div>
         <div class="progress"><div id="bar" class="bar"></div></div>
         <div id="steps" class="steps"></div>
         <div id="manual" class="notice hidden">
-          생성된 지시서를 보고 Suno 음악과 대표 이미지를 준비해 주세요.
-          파일을 각 폴더에 넣은 뒤 아래 버튼을 누르면 영상 제작이 자동으로 이어집니다.
+          Suno_Prompts.txt의 프롬프트로 음악 8곡을 만들어 음악 폴더에 넣어 주세요.
+          썸네일 이미지는 이미 등록되어 있으므로 음악만 준비하면 됩니다.
           <div class="actions">
             <button class="secondary" data-open="project">지시서 폴더 열기</button>
             <button class="secondary" data-open="tracks">음악 폴더 열기</button>
-            <button class="secondary" data-open="image">이미지 폴더 열기</button>
             <button id="continue" type="button">파일 확인 후 영상 만들기</button>
           </div>
         </div>
@@ -95,7 +110,8 @@
     </div>
   </main>
   <script>
-    const state = { projectId: null, timer: null };
+    const MAX_THUMBNAIL_BYTES = 20 * 1024 * 1024;
+    const state = { projectId: null, timer: null, thumbnail: null };
     const el = id => document.getElementById(id);
     async function request(path, options) {
       const response = await fetch(path, options);
@@ -114,11 +130,29 @@
       const action = error.action ? "\n해결 방법: " + error.action : "";
       return step + (error.message || "제작에 실패했습니다.") + action;
     }
+    function renderMood(mood) {
+      el("mood").classList.toggle("hidden", !mood);
+      if (!mood) return;
+      el("moodChips").replaceChildren(...(mood.tags || []).map(tag => {
+        const chip = document.createElement("span");
+        chip.className = "chip";
+        chip.textContent = tag;
+        return chip;
+      }));
+      el("moodSwatches").replaceChildren(...(mood.palette || []).map(color => {
+        const swatch = document.createElement("span");
+        swatch.className = "swatch";
+        swatch.style.background = color;
+        swatch.title = color;
+        return swatch;
+      }));
+    }
     function render(manifest) {
       if (!manifest) return;
       state.projectId = manifest.projectId;
       el("progressCard").classList.remove("hidden");
       el("message").textContent = manifest.message || "";
+      renderMood(manifest.mood);
       el("bar").style.width = String(manifest.progress || 0) + "%";
       el("steps").replaceChildren();
       manifest.steps.forEach(step => {
@@ -152,16 +186,57 @@
       if (state.timer) clearInterval(state.timer);
       state.timer = null;
     }
+    function readThumbnail(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error("이미지를 읽지 못했습니다."));
+        reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+        reader.readAsDataURL(file);
+      });
+    }
+    async function selectThumbnail(file) {
+      el("formError").classList.add("hidden");
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        showError(el("formError"), new Error("이미지 파일만 등록할 수 있습니다."));
+        return;
+      }
+      if (file.size > MAX_THUMBNAIL_BYTES) {
+        showError(el("formError"), new Error("썸네일 이미지는 20MB 이하만 등록할 수 있습니다."));
+        return;
+      }
+      try {
+        state.thumbnail = await readThumbnail(file);
+      } catch (error) {
+        showError(el("formError"), error);
+        return;
+      }
+      el("preview").src = URL.createObjectURL(file);
+      el("preview").classList.remove("hidden");
+      el("dropText").textContent = file.name + " · 다른 이미지를 선택하려면 다시 누르세요";
+    }
+    el("thumbnail").addEventListener("change", event => selectThumbnail(event.target.files[0]));
+    el("dropZone").addEventListener("dragover", event => {
+      event.preventDefault();
+      el("dropZone").classList.add("dragging");
+    });
+    el("dropZone").addEventListener("dragleave", () => el("dropZone").classList.remove("dragging"));
+    el("dropZone").addEventListener("drop", event => {
+      event.preventDefault();
+      el("dropZone").classList.remove("dragging");
+      selectThumbnail(event.dataTransfer.files[0]);
+    });
     el("start").addEventListener("click", async () => {
       const theme = el("theme").value.trim();
       el("formError").classList.add("hidden");
+      if (!state.thumbnail) { showError(el("formError"), new Error("썸네일 이미지를 먼저 등록해 주세요.")); return; }
       if (!theme) { showError(el("formError"), new Error("테마를 입력해 주세요.")); return; }
       el("start").disabled = true;
       try {
         const manifest = await request("/api/projects", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ theme })
+          body: JSON.stringify({ theme, thumbnail: state.thumbnail })
         });
         render(manifest);
       } catch (error) {
